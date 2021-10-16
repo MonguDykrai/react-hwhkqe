@@ -1,0 +1,125 @@
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
+import { formatTime, miniDate } from "@/utils/util";
+import { deviceStatusList } from "@/utils/enmu";
+import styles from "./index.less";
+import { Swiper, SwiperSlide } from "swiper/react";
+
+import SwiperCore, { Pagination } from "swiper";
+
+// install Swiper modules
+SwiperCore.use([Pagination]);
+
+import { FaultType } from "./interface";
+//  数据接口展示没得
+interface IProps {
+  data: API.SlaveInfo[] | undefined;
+}
+
+export interface MachineBottomRefProps {
+  resetIndex: () => void; // 切换产线需要重置索引，否则会接着先前的索引继续
+}
+
+const MachineBottom = forwardRef<MachineBottomRefProps, IProps>(
+  ({ data = [] }, ref) => {
+    {
+      const [array, setArray] = useState([]);
+      const [index, setIndex] = useState(0);
+      const [maxIndex, setMaxIndex] = useState(0);
+
+      useImperativeHandle(ref, () => ({
+        resetIndex() {
+          // 重置index
+          setIndex(0);
+        },
+      }));
+
+      useEffect(() => {
+        const copy: API.SlaveInfo[] = JSON.parse(JSON.stringify(data));
+        const dataIncludesStatus = copy.map((item) => {
+          let val = {};
+          deviceStatusList.some((value) => {
+            if (item.status === value.status) {
+              val = value;
+              return true;
+            }
+          });
+          return {
+            ...item,
+            ...val,
+          };
+        });
+        setMaxIndex(dataIncludesStatus.length - 1);
+        setArray(dataIncludesStatus);
+      }, [data]);
+
+      useEffect(() => {
+        if (array.length === 0) return;
+        const time = setInterval(() => {
+          let innerIndex = 0;
+          if (index === maxIndex) {
+            innerIndex = 0;
+          } else {
+            innerIndex = index + 1;
+          }
+          setIndex(innerIndex);
+        }, 4000);
+        return () => {
+          clearInterval(time);
+        };
+      }, [array]);
+      const renderMome = useMemo(() => {
+        return (
+          <div className={styles["list-container"]}>
+            {array.length > 0 ? (
+              array.map((item, inx) => {
+                return (
+                  <div
+                    className={styles["item"]}
+                    key={item.id + inx}
+                    style={{
+                      border: `1px solid ${item.color}`,
+                      opacity: inx === index ? "1" : "0.6",
+                    }}
+                  >
+                    <div className={styles["item-name"]}>{item.name}</div>
+                    <img
+                      className={styles.picture}
+                      src={require("@/assets/common/Cm200.png")}
+                    />
+                    <div className={styles.bottom}>
+                      <div
+                        className={styles.state}
+                        style={{ backgroundColor: `${item.color}` }}
+                      ></div>
+                      <div
+                        className={styles.status}
+                        style={{ backgroundColor: `${item.color}` }}
+                      ></div>
+                      <div
+                        className={styles.text}
+                        style={{ color: `${item.color}` }}
+                      >
+                        {item.device_name}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className={styles.empty}>暂无设备</div>
+            )}
+          </div>
+        );
+      }, [array]);
+      return renderMome;
+    }
+  }
+);
+
+export default MachineBottom;
